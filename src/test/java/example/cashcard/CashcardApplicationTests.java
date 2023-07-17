@@ -210,4 +210,56 @@ class CashcardApplicationTests {
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
 	}
 
+	/**
+	 * @DirtiesContext
+	 * We'll add this annotation to all tests which change the data.
+	 * If we don't, then these tests could affect the result of other tests in the file.
+	 */
+	@Test
+	@DirtiesContext
+	void shouldDeleteAnExistingCashCard() {
+		ResponseEntity<Void> response = restTemplate
+				.withBasicAuth("sarah1", "abc123")
+				.exchange("/cashcards/99", HttpMethod.DELETE, null, Void.class);
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+		//Comprobamos que la Tarjeta de efectivo eliminada realmente se eliminó,
+		// por lo que intentamos OBTENERLA y afirmamos que el código de resultado es 404 NO ENCONTRADO.
+
+		ResponseEntity<String> getResponse = restTemplate
+				.withBasicAuth("sarah1", "abc123")
+				.getForEntity("/cashcards/99", String.class);
+		assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+	}
+
+	/**
+	* Necesitamos verificar si el registro existe. De lo contrario,
+	 * no deberíamos eliminar la Tarjeta de efectivo y devolver 404 NO ENCONTRADA.
+	 */
+	@Test
+	void shouldNotDeleteACashCardThatDoesNotExist() {
+		ResponseEntity<Void> deleteResponse = restTemplate
+				.withBasicAuth("sarah1", "abc123")
+				.exchange("/cashcards/99999", HttpMethod.DELETE, null, Void.class);
+		assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+	}
+
+	/**
+	 * ¿Qué sucede si el usuario intenta eliminar una tarjeta de efectivo que pertenece a otra persona?
+	 */
+	@Test
+	void shouldNotAllowDeletionOfCashCardsTheyDoNotOwn() {
+		ResponseEntity<Void> deleteResponse = restTemplate
+				.withBasicAuth("sarah1", "abc123")
+				.exchange("/cashcards/102", HttpMethod.DELETE, null, Void.class);
+		assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+		//verificar que el registro que se intentó eliminar sin éxito todavía está allí
+
+		ResponseEntity<String> getResponse = restTemplate
+				.withBasicAuth("kumar2", "xyz789")
+				.getForEntity("/cashcards/102", String.class);
+		assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
+
 }
